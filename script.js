@@ -3,23 +3,24 @@ const COST_SPLIT = 30;
 const COST_LEAF = 60;
 const COST_FRUIT = 50;
 
-const audioMusic = new Audio("music.mp3");
+//const audioMusic = new Audio("music.mp3");
 const audioBuild = new Audio("build.mp3");
 const audioClick = new Audio("click.mp3");
 
-
-const icons = [new Image, new Image, new Image, new Image, new Image, new Image];
-icons[1].src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAKtJREFUWEftlUEOwCAIBOX/j7bxYGOMrbPQ1As9w+6ErmDl8GeH/UsC5ARyAmgCtdZqZqi2P2vasxVtQl2UQig9W4BmrggqtU0bAVAI1VwC2EF4zGWAJwivuQtghOih7AA0pOMBxBlYXc2I8f2yIuf4GMBsHAGRf8EqcL+F8M3IC4EnQAxIzZw5BKAIK7VoD6iCu43pnoC6ZD47x5E9QXpRBoiQtyYBcgI5gQs+Rngh8Va3MQAAAABJRU5ErkJgggAA";
-icons[2].src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAGxJREFUWEftl0sKwCAQxXz3P/QUF26E0plnYUDiXhOCH9RoHmrmDwQoQIGjAhER8xhLstexJy74ukdcCUtgh59IlAXe4K5ESeAL7kikBbLwqkRaYH+0WjfhlEGAAhSgAAX++k/YbwECFLimwAN6GkQhDlhyFwAAAABJRU5ErkJggg==";
-icons[3].src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAKFJREFUWEftl1EKwCAMQ9f7H7rDgUNkNQkIfiz77pJHrAHjOvzFYf/LAE7ACVAJZGa26xoR2+ehYDfvfYEg1PklwCyGINT5J9WqCSuxCkKdf3W+AJDYDKHOj57SDqDz78IjEPrHAFICTBco8S9vwbgo7JLNC43OnwZogyoEYy4BKBCsuQywOhbFVOoBtikN8L8Edr0nYBPuMqp0DOAEjidwA8F3aCHocMaeAAAAAElFTkSuQmCC";
-icons[4].src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAALdJREFUWEftltEKwCAIRfP/P7rhQBBpodfIBe1lL4XHc3ONWvFDxfXbBTjbQO+9E1GqidTmXwDwFGUswAake35nIJYBoBAQgHQtRTMWwgC6uAVALIQAbPGtAKPico/wFNhYvHeM20ApwKz4KIbIWXAZiHSvY/HEcAYAd/JlwR7AiP53rUeTrPGM4VaAbPdhA9aEBkBvxFAENq7S/4EVxeEIZCpQ7dokHEG5gVUWYAOR78ds7QW4Bh6QZ5Ahli/b5gAAAABJRU5ErkJgggAA";
-icons[5].src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAKxJREFUWEftlNsKgDAMQ9f//+jKhMoYs3c2hfrqbM4SG2iHHzis3wrA7QAiIgC4v6fo3QM6QB8ShQgDRCHcAF04w4UQAEFEYvgXAFn+/MHDFnDvuLJTOTAPt7SnFI8IEBFfOTXDswAZ4tKabgHgIF4Bsm4vxVAA33Vg7HrL3q/Ocl2wZQvcABkuhJswAiGJ3/2gzdfaCxpxEwCBciBa0fHSage0TlnPFUA5UA5cfNhYIY+BSZ8AAAAASUVORK5CYIIA";
+const icons = [new Image, new Image, new Image, new Image, new Image, new Image, new Image];
+icons[1].src = "img/cross.png";
+icons[2].src = "img/branch.png";
+icons[3].src = "img/split.png";
+icons[4].src = "img/leaf.png";
+icons[5].src = "img/fruit.png";
+icons[6].src = "img/speaker.png";
 
 let time = 0;
 let timeLast = 0;
-let mouseX;
-let mouseY;
+let pointerX;
+let pointerY;
 let isPointerDown = false;
+let isSelecting = false;
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
@@ -45,6 +46,74 @@ const startSpeed = 5;
 const absorbSpeed = 4;
 const growSpeed = 10;
 
+class Segment {
+    constructor(parent) {
+        this.parent = parent;
+        this.id = getNextId();
+        this.distanceToRoot = 0;
+        this.children = [];
+        this.isSelectable = true;
+        this.isLeaf = false;
+        this.isFruit = false;
+        this.fruitSize = 5;
+        this.matrixFruit;
+        this.matrix;
+
+        if (parent) {
+            parent.isSelectable = false;
+            parent.children.push(this);
+            this.distanceToRoot = parent.distanceToRoot;
+            this.distanceToRoot += 1;
+        }
+    }
+
+    render() {
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -35);
+        ctx.stroke();
+        ctx.translate(0, -5);
+
+        if (this.isLeaf) {
+            ctx.save();
+            ctx.fillStyle = "#fff";
+
+            ctx.rotate(1);
+            leaf(2, 0, 12, 30);
+
+            ctx.rotate(-1.9);
+            leaf(-2, 0, 12, 30);
+
+            ctx.restore();
+
+        } else if (this.isFruit) {
+            ctx.save();
+            ctx.fillStyle = "#ff2222";
+            bezierCircle(0, 0, this.fruitSize * 1.5, this.fruitSize * 1.5);
+            this.matrixFruit = ctx.getTransform();
+            ctx.restore();
+        }
+
+        ctx.translate(0, -30);
+        this.matrix = ctx.getTransform();
+
+        for (let i = 0; i < this.children.length; i++) {
+            ctx.save();
+            ctx.lineWidth = 10;
+            if (this.children.length > 1) {
+                let rotation = i - 0.5;
+                rotation += getSine(i / 5);
+                ctx.rotate(rotation);
+            } else {
+                ctx.rotate(getSine(i / 3));
+            }
+            this.children[i].render();
+            ctx.restore();
+        }
+    }
+}
+
 window.onload = function () {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("pointerdown", onPointerDown);
@@ -52,38 +121,13 @@ window.onload = function () {
     requestAnimationFrame(loop);
 }
 
-function onMouseMove(evt) {
-    let canvasRect = canvas.getBoundingClientRect();
-    mouseX = evt.x - canvasRect.left,
-        mouseY = evt.y - canvasRect.top;
-}
-
-function onPointerDown(evt) {
-    isPointerDown = true;
-}
-
 function loop() {
     time = Date.now() - timeLast;
     update(time / 1000);
     timeLast = Date.now();
     requestAnimationFrame(loop);
-    reset();
-}
-
-function reset() {
     isPointerDown = false;
-}
 
-function getSine(offset) {
-    let t = (timer + offset) % timerMax;
-    let fac = (t / timerMax) * Math.PI * 2;
-    return (Math.sin(fac) / 50);
-}
-
-function getTimeOffset(offset) {
-    let t = (timer + offset) % timerMax;
-    let fac = (t / timerMax);
-    return fac;
 }
 
 function setup() {
@@ -105,11 +149,11 @@ function update(deltaTime) {
     }
 
     if (!isPlaying) {
-        renderMenu();
+        renderMenuMain();
         return;
     }
 
-    //simulation
+    // SIMULATION
     timeLeft -= deltaTime;
     if (timeLeft < 1) {
         isPlaying = false;
@@ -143,19 +187,54 @@ function update(deltaTime) {
         power = powerMax;
     }
 
-    //render
+    // RENDERING
     renderBackground();
     renderPlant();
     renderPower();
-    renderSelectButtons();
     renderHarvestButtons();
+    renderSelectButtons();
     renderBuildMenu();
-    renderStats();
+    renderMenuTop();
 }
+
+// GENERAL
+
+function onMouseMove(evt) {
+    let canvasRect = canvas.getBoundingClientRect();
+    pointerX = evt.x - canvasRect.left,
+        pointerY = evt.y - canvasRect.top;
+}
+
+function onPointerDown(evt) {
+    let canvasRect = canvas.getBoundingClientRect();
+    pointerX = evt.x - canvasRect.left,
+        pointerY = evt.y - canvasRect.top;
+    isPointerDown = true;
+}
+
+function getTimeOffset(offset) {
+    let t = (timer + offset) % timerMax;
+    let fac = (t / timerMax);
+    return fac;
+}
+
+function getSine(offset) {
+    let t = (timer + offset) % timerMax;
+    let fac = (t / timerMax) * Math.PI * 2;
+    return (Math.sin(fac) / 50);
+}
+
+function getNextId() {
+    lastId += 1;
+    return lastId - 1;
+}
+
+
+// RENDERING
 
 function renderBackground() {
     ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, 480, 480);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(0, -50);
     ctx.rotate(0.1);
@@ -167,13 +246,14 @@ function renderBackground() {
 
 function renderPlant() {
     ctx.save();
-    ctx.translate(240, 440);
+    ctx.translate(canvas.width/2, canvas.height-40);
     ctx.strokeStyle = "#ffffff";
     ctx.lineCap = "round";
-    plant[0].draw();
+    plant[0].render();
     ctx.restore();
 
-    ctx.fillStyle = "#888";
+    // GROUND
+    ctx.fillStyle = "#444";
     ctx.beginPath();
     ctx.moveTo(0, canvas.height - 40);
     ctx.lineTo(0, canvas.height);
@@ -182,6 +262,116 @@ function renderPlant() {
     ctx.bezierCurveTo(canvas.width - 100, canvas.height - 40, canvas.width - 100, canvas.height - 60, canvas.width / 2, canvas.height - 60);
     ctx.bezierCurveTo(100, canvas.height - 60, 100, canvas.height - 40, 0, canvas.height - 40);
     ctx.fill();
+}
+
+function renderMenuTop() {
+    label("TIME: " + Math.floor(timeLeft), 65, 20, 16);
+    label("HARVEST: " + harvest, canvas.width - 70, 20, 16);
+}
+
+function renderMenuMain() {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const x = canvas.width / 2;
+    const y = canvas.height / 2;
+    label("HARVEST", x, y - 100, 40);
+    label("SCORE: " + lastScore, x, y, 16);
+    label("HIGHSCORE: " + highScore, x, y + 20, 16);
+
+    if (button(x, y + 100, "#666", 1, 3)) {
+        if (isPointerDown) {
+            // audioMusic.pause();
+            // audioMusic.currentTime = 0;
+            // audioMusic.play();
+            setup();
+            isPlaying = true;
+        }
+    }
+}
+
+function renderBuildMenu() {
+    if (selectedId == 0) {
+        return;
+    }
+
+    let point = new DOMPoint(0, 0);
+    point = plant[selectedId].matrix.transformPoint(point);
+
+
+    if (button(point.x, point.y, "#222", 1, 1)) {
+        if (isPointerDown) {
+            audioClick.currentTime = 0;
+            audioClick.play();
+            isPointerDown = false;
+            selectedId = 0;
+        }
+    }
+
+    if (button(point.x - 40, point.y - 32, "#555", 1, 2)) {
+        if (isPointerDown) {
+            if (power >= COST_GROW) {
+                audioBuild.currentTime = 0;
+                audioBuild.play();
+                isPointerDown = false;
+                power -= COST_GROW;
+                plant.push(new Segment(plant[selectedId]));
+                selectedId = 0;
+            }
+        } else {
+            renderCost(COST_GROW);
+        }
+    }
+
+    if (button(point.x - 40, point.y + 32, "#555", 1, 3)) {
+        if (isPointerDown) {
+            if (power >= COST_SPLIT) {
+                audioBuild.currentTime = 0;
+                audioBuild.play();
+                isPointerDown = false;
+                power -= COST_SPLIT;
+                plant.push(new Segment(plant[selectedId]));
+                plant.push(new Segment(plant[selectedId]));
+                selectedId = 0;
+            }
+        } else {
+            renderCost(COST_SPLIT);
+        }
+    }
+
+    if (button(point.x + 40, point.y - 32, "#555", 1, 4)) {
+        if (isPointerDown) {
+            if (power >= COST_LEAF) {
+                audioBuild.currentTime = 0;
+                audioBuild.play();
+                isPointerDown = false;
+                power -= COST_LEAF;
+                let segment = new Segment(plant[selectedId]);
+                segment.isLeaf = true;
+                plant.push(segment);
+                selectedId = 0;
+            }
+        } else {
+            renderCost(COST_LEAF);
+        }
+    }
+
+    if (button(point.x + 40, point.y + 32, "#555", 1, 5)) {
+        if (isPointerDown) {
+            if (power >= COST_FRUIT) {
+                audioBuild.currentTime = 0;
+                audioBuild.play();
+                isPointerDown = false;
+                power -= COST_FRUIT;
+                let segment = new Segment(plant[selectedId]);
+                segment.isFruit = true;
+                plant.push(segment);
+                selectedId = 0;
+            }
+        } else {
+            renderCost(COST_FRUIT);
+        }
+    }
+
 }
 
 function renderHarvestButtons() {
@@ -199,11 +389,11 @@ function renderHarvestButtons() {
             let point = new DOMPoint(0, 0);
             point = plant[i].matrixFruit.transformPoint(point);
 
-            if (button(point.x, point.y, "#333", 0.2, 1, 24)) {
+            if (button(point.x, point.y, "#333", 0.2, 1)) {
                 if (isPointerDown) {
                     audioClick.currentTime = 0;
                     audioClick.play();
-                    reset();
+                    isPointerDown = false;
                     plant[i].fruitSize = 0;
                     harvest += 1;
                 }
@@ -223,9 +413,10 @@ function renderSelectButtons() {
                 continue;
             }
 
-            if (plant[i].distanceToRoot >= 10) {
-                continue;
-            }
+            // // MAXIMUM BRANCH LENGTH
+            // if (plant[i].distanceToRoot >= 10) {
+            //     continue;
+            // }
 
             if (plant[i].id == selectedId) {
                 continue;
@@ -233,101 +424,16 @@ function renderSelectButtons() {
 
             let point = new DOMPoint(0, 0);
             point = plant[i].matrix.transformPoint(point);
-            if (button(point.x, point.y, "#aaaaaa", 0.2, 0, 24)) {
+            if (button(point.x, point.y, "#aaaaaa", 0.2, 0)) {
                 if (isPointerDown) {
                     audioClick.currentTime = 0;
                     audioClick.play();
-                    reset();
+                    isPointerDown = false;
                     selectedId = i;
                 }
             }
         }
     }
-}
-
-function renderBuildMenu() {
-    if (selectedId == 0) {
-        return;
-    }
-
-    let point = new DOMPoint(0, 0);
-    point = plant[selectedId].matrix.transformPoint(point);
-
-
-    if (button(point.x, point.y, "#222", 1, 1, 24)) {
-        if (isPointerDown) {
-            audioClick.currentTime = 0;
-            audioClick.play();
-            reset();
-            selectedId = 0;
-        }
-    }
-
-    if (button(point.x - 30, point.y - 18, "#555", 1, 2)) {
-        if (isPointerDown) {
-            if (power >= COST_GROW) {
-                audioBuild.currentTime = 0;
-                audioBuild.play();
-                reset();
-                power -= COST_GROW;
-                plant.push(new Segment(plant[selectedId]));
-                selectedId = 0;
-            }
-        } else {
-            renderCost(COST_GROW);
-        }
-    }
-
-    if (button(point.x - 30, point.y + 18, "#555", 1, 3)) {
-        if (isPointerDown) {
-            if (power >= COST_SPLIT) {
-                audioBuild.currentTime = 0;
-                audioBuild.play();
-                reset();
-                power -= COST_SPLIT;
-                plant.push(new Segment(plant[selectedId]));
-                plant.push(new Segment(plant[selectedId]));
-                selectedId = 0;
-            }
-        } else {
-            renderCost(COST_SPLIT);
-        }
-    }
-
-    if (button(point.x + 30, point.y - 18, "#555", 1, 4)) {
-        if (isPointerDown) {
-            if (power >= COST_LEAF) {
-                audioBuild.currentTime = 0;
-                audioBuild.play();
-                reset();
-                power -= COST_LEAF;
-                let segment = new Segment(plant[selectedId]);
-                segment.isLeaf = true;
-                plant.push(segment);
-                selectedId = 0;
-            }
-        } else {
-            renderCost(COST_LEAF);
-        }
-    }
-
-    if (button(point.x + 30, point.y + 18, "#555", 1, 5)) {
-        if (isPointerDown) {
-            if (power >= COST_FRUIT) {
-                audioBuild.currentTime = 0;
-                audioBuild.play();
-                reset();
-                power -= COST_FRUIT;
-                let segment = new Segment(plant[selectedId]);
-                segment.isFruit = true;
-                plant.push(segment);
-                selectedId = 0;
-            }
-        } else {
-            renderCost(COST_FRUIT);
-        }
-    }
-
 }
 
 function renderPower() {
@@ -360,137 +466,27 @@ function renderCost(cost) {
     ctx.fillRect(10, y, min * cost, 10);
 }
 
-function renderStats() {
-    label("TIME LEFT: " + Math.floor(timeLeft), 120, 10, 16);
-    label("HARVEST: " + harvest, canvas.width - 120, 10, 16);
-}
-
-function renderMenu() {
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const x = canvas.width / 2;
-    const y = canvas.height / 2;
-    label("HARVEST", x, y - 100, 40);
-    label("SCORE: " + lastScore, x, y, 16);
-    label("HIGHSCORE: " + highScore, x, y + 20, 16);
-    if (button(x, y + 100, "#666", 1, 3, 32)) {
-        if (isPointerDown) {
-            audioMusic.currentTime = 0;
-            audioMusic.play();
-            setup();
-            isPlaying = true;
-        }
-    }
-}
-
-function getNextId() {
-    lastId += 1;
-    return lastId - 1;
-}
-
-class Segment {
-    constructor(parent) {
-        this.parent = parent;
-        this.id = getNextId();
-        this.distanceToRoot = 0;
-        this.children = [];
-        this.isSelectable = true;
-        this.isLeaf = false;
-        this.isFruit = false;
-        this.fruitSize = 5;
-        this.matrixFruit;
-        this.matrix;
-
-        if (parent) {
-            parent.isSelectable = false;
-            parent.children.push(this);
-            this.distanceToRoot = parent.distanceToRoot;
-            this.distanceToRoot += 1;
-        }
-    }
-
-    draw() {
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -30);
-        ctx.stroke();
-        ctx.translate(0, -10);
-
-        if (this.isLeaf) {
-            ctx.save();
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.rotate(2);
-            ctx.roundRect(-5, 0, 10, 20, [5, 5, 10, 0]);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.rotate(-4);
-            ctx.roundRect(-5, 0, 10, 20, [5, 5, 0, 10]);
-            ctx.fill();
-            ctx.restore();
-        } else if (this.isFruit) {
-            ctx.save();
-            ctx.fillStyle = "#ff2222";
-            ctx.beginPath();
-            ctx.roundRect(-this.fruitSize / 2, -this.fruitSize / 2, this.fruitSize, this.fruitSize, this.fruitSize);
-            ctx.fill();
-            this.matrixFruit = ctx.getTransform();
-            ctx.restore();
-        }
-
-        ctx.translate(0, -20);
-        this.matrix = ctx.getTransform();
-
-        for (let i = 0; i < this.children.length; i++) {
-            ctx.save();
-            ctx.lineWidth = 10;
-            if (this.children.length > 1) {
-                let rotation = i - 0.5;
-                rotation += getSine(i / 5);
-                ctx.rotate(rotation);
-            } else {
-                ctx.rotate(getSine(i / 3));
-            }
-            this.children[i].draw();
-            ctx.restore();
-        }
-
-        // //debug
-        // ctx.fillStyle = "#111111";
-        // ctx.fillRect(0,0,20,20);
-        // ctx.fillStyle = "#ff0000";
-        // ctx.font = "16px Courier New";
-        // ctx.fillText(this.distanceToRoot,8,16);
-    }
-
-}
-
-function button(_x, _y, color, alpha = 1, icon = 0, size = 32) {
+function button(_x, _y, color, alpha = 1, icon = 0, size = 34) {
     const w = size;
     const h = size;
     const x = _x - w / 2;
     const y = _y - h / 2;
 
-    const isHovered = mouseX > x && mouseX < x + w && mouseY > y && mouseY < y + h;
+    const isHovered = pointerX > x && pointerX < x + w && pointerY > y && pointerY < y + h;
 
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 15);
-    ctx.fill();
+    bezierCircle(_x, _y, w, h);
 
     if (isHovered) {
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = "#000";
-        ctx.beginPath();
-        ctx.roundRect(x, y, w, h, 15);
-        ctx.fill();
-
+        bezierCircle(_x, _y, w, h);
     }
+
     ctx.globalAlpha = 1;
     if (icon != 0) {
-        ctx.drawImage(icons[icon], x, y, size, size);
+        ctx.drawImage(icons[icon], x + (size - 32) / 2, y + (size - 32) / 2, 32, 32);
     }
 
     ctx.strokeStyle = "#fff";
@@ -510,9 +506,29 @@ function label(str, _x, _y, _size = 16) {
     ctx.fillText(str, x, y);
 }
 
+function bezierCircle(x, y, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - h / 2);
+    ctx.bezierCurveTo(x + w / 4, y - h / 2, x + w / 2, y - h / 4, x + w / 2, y);
+    ctx.bezierCurveTo(x + w / 2, y + h / 4, x + w / 4, y + h / 2, x, y + h / 2);
+    ctx.bezierCurveTo(x - w / 4, y + h / 2, x - w / 2, y + h / 4, x - w / 2, y);
+    ctx.bezierCurveTo(x - w / 2, y - h / 4, x - w / 4, y - h / 2, x, y - h / 2);
+    ctx.fill();
+}
+
+function leaf(x, y, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.bezierCurveTo(x - w / 4, y, x - w / 2, y - h / 6, x - w / 2, y - h / 4);
+    ctx.bezierCurveTo(x - w / 2, y - h * 0.5, x - w / 3, y - h * 0.66, x, y - h);
+    ctx.bezierCurveTo(x + w / 3, y - h * 0.66, x + w / 2, y - h * 0.5, x + w / 2, y - h / 4);
+    ctx.bezierCurveTo(x + w / 2, y - h / 6, x + w / 4, y, x, y);
+    ctx.fill();
+}
+
 function raindrop(x, fac, length) {
-    ctx.strokeStyle = "#444";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x, fac * (canvas.height * (x % 3 + 1)));
     ctx.lineTo(x, fac * (canvas.height * (x % 3 + 1)) + length);
